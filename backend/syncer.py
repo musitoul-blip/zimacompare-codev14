@@ -20,7 +20,7 @@ from comparators import verify_copy
 from config import REPORTS_DIR, AppState, setup_logging, update_state, get_state
 from mountcheck import MountGuard, MountLost, precheck_target
 from preflight import run_preflight
-from scanner import load_scan_results, start_scan
+from scanner import load_scan_results, start_scan, _dir_signature
 
 logger = setup_logging()
 
@@ -204,6 +204,12 @@ def _run_sync(source, target, dry_run, verify, mirror_deletes, max_workers, auto
                 logger.error(f"[SYNC] Pré-contrôle montage échoué : {pre}")
                 update_state(app_state=AppState.ERROR, error=pre); return
 
+        if mirror_deletes:
+            _st = get_state()
+            _live_tsig = "%.0f:%d" % _dir_signature(Path(target))
+            if _st.get("source_changed") or _st.get("target_changed") or (_st.get("target_sig") and _live_tsig != _st["target_sig"]):
+                update_state(app_state=AppState.ERROR, error="Plan perime : source ou cible modifiee depuis le scan. Relancez un scan avant la synchro.")
+                return
         actions = _plan(scan_results, source, target, mirror_deletes)
         total = len(actions)
         if total == 0:

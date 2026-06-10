@@ -184,6 +184,7 @@ def _run_scan(source: str, target: str, method: str, chunk_mb: int):
 
         # NEW v3.4 : snapshot du signature source au début
         sig_start = _dir_signature(src)
+        tsig_start = _dir_signature(tgt)
         logger.info(f"[SCAN] Signature source initiale : mtime={sig_start[0]:.0f}, entries={sig_start[1]}")
 
         _is_cloud = (method == "cloud")
@@ -343,6 +344,8 @@ def _run_scan(source: str, target: str, method: str, chunk_mb: int):
         # NEW v3.4 : vérification de la source en fin de scan
         sig_end = _dir_signature(src)
         source_changed = (sig_end != sig_start)
+        tsig_end = _dir_signature(tgt)
+        target_changed = (tsig_end != tsig_start)
         source_warning = ""
         if source_changed:
             source_warning = (
@@ -370,6 +373,7 @@ def _run_scan(source: str, target: str, method: str, chunk_mb: int):
             deleted_count=deleted, identical_count=identical,
             bytes_to_copy=bytes_to_copy, scan_done=True,
             source_changed=source_changed, source_warning=source_warning,
+            target_changed=target_changed, target_sig=f"{tsig_end[0]:.0f}:{tsig_end[1]}",
         )
 
     except Exception as e:

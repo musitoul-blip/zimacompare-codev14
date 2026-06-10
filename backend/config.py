@@ -79,6 +79,8 @@ class ProgressState:
     sync_simulated:  int   = 0
     bytes_to_copy:   int   = 0
     scan_done:       bool  = False
+    target_changed: bool = False
+    target_sig: str = ""
     # NEW v3.4
     source_changed:  bool  = False    # mtime du dossier source a changé pendant le scan
     source_warning:  str   = ""        # détail du warning de modification source
