@@ -40,7 +40,8 @@ class SmartExtractor:
                 need_format = not result.get('cover_format')
                 need_dims = (not result.get('cover_width')
                              or not result.get('cover_height'))
-                if need_md5 or need_format or need_dims:
+                need_valid = not result.get('cover_valid')
+                if need_md5 or need_format or need_dims or need_valid:
                     cover_info = self._extract_cover_info(filepath)
                     if need_md5 and cover_info.get('cover_md5'):
                         result['cover_md5'] = cover_info['cover_md5']
@@ -54,6 +55,9 @@ class SmartExtractor:
                     # Complète aussi cover_size si absent
                     if not result.get('cover_size') and cover_info.get('cover_size'):
                         result['cover_size'] = cover_info['cover_size']
+                    if need_valid:
+                        result['cover_valid'] = cover_info.get('cover_valid', '')
+                        result['cover_error'] = cover_info.get('cover_error', '')
             
         except Exception as e:
             result['error'] = str(e)
@@ -80,7 +84,7 @@ class SmartExtractor:
             'samplerate': '', 'channels': '', 'bitdepth': '', 'codec': '',
             'id3_version': '', 'has_cover': 'No', 'cover_size': 0,
             'cover_format': '', 'cover_width': 0, 'cover_height': 0,
-            'cover_md5': '', 'error': ''
+            'cover_md5': '', 'cover_valid': '', 'cover_error': '', 'error': ''
         }
     
     def _compute_file_md5(self, filepath: Path) -> str:
@@ -149,6 +153,15 @@ class SmartExtractor:
                     w, h = self._detect_cover_dimensions(cover)
                     info['cover_width'] = w
                     info['cover_height'] = h
+                    try:
+                        from io import BytesIO
+                        from PIL import Image
+                        Image.open(BytesIO(cover)).verify()
+                        Image.open(BytesIO(cover)).load()
+                        info['cover_valid'] = 'Yes'
+                    except Exception as ce:
+                        info['cover_valid'] = 'No'
+                        info['cover_error'] = str(ce)[:200]
         except Exception as e:
             logger.debug(f"_extract_cover_info({filepath.name}): {e}")
         return info

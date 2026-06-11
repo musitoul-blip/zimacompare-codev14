@@ -139,6 +139,7 @@ class ExcelExporter:
             ('🎨 Covers Non-Uniformes', 'cover_non_uniform'),
             ('🚫 Pochettes non-JPG', 'covers_non_jpg'),
             ('📺 Pochettes > Bluesound', 'covers_bluesound_oversized'),
+            ('❌ Pochettes corrompues', 'covers_invalid'),
         ],
         'donnees': [
             ('📁 Données Complètes', 'music_tags'),

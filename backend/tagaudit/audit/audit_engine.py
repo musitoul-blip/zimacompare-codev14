@@ -131,6 +131,7 @@ class AuditEngine:
             ('albumartist_vs_artist', self._audit_albumartist_vs_artist),
             ('cover_size', self._audit_cover_size),
             ('cover_non_uniform', self._audit_cover_non_uniform),
+            ('covers_invalid', self._audit_covers_invalid),
             ('codec_homogeneity', self._audit_codec_homogeneity),
             ('genre_stats', self._audit_genre_stats),
             ('case_inconsistency_artist', self._audit_case_inconsistency_artist),
@@ -932,6 +933,17 @@ class AuditEngine:
         available = [c for c in cols if c in df.columns]
         return df[available].sort_values('cover_size', ascending=False)
     
+    def _audit_covers_invalid(self) -> pd.DataFrame:
+        # Pochettes corrompues - integrite Pillow (cover_valid == No)
+        if not self._has_cols('has_cover', 'cover_valid'):
+            return pd.DataFrame()
+        df = self.df[(self.df['has_cover'] == 'Yes') & (self.df['cover_valid'] == 'No')].copy()
+        if df.empty:
+            return pd.DataFrame()
+        cols = ['filepath', 'parent_folder', 'album', 'cover_format', 'cover_error']
+        available = [c for c in cols if c in df.columns]
+        return df[available].sort_values('parent_folder') if 'parent_folder' in df.columns else df[available]
+
     def _audit_cover_non_uniform(self) -> pd.DataFrame:
         """Covers non-uniformes"""
         # [26] Garde colonnes
