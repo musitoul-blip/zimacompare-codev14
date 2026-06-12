@@ -22,6 +22,11 @@ from core import config
 ROW_CAP = 800
 SKIP_KEYS = {"music_tags"}
 KPI_KEYS = {"kpi_dashboard", "kpi_years", "kpi_genres", "kpi_albumartists", "genre_stats"}
+try:
+    from config import APP_VERSION
+except Exception:
+    APP_VERSION = "3.8.0"
+
 DANGER_KEYS = {
     "covers_invalid", "missing_metadata", "duplicates_md5",
     "duplicates_artist_title", "incomplete_albums", "duration_zero",
