@@ -196,6 +196,9 @@ def _run_sync(source, target, dry_run, verify, mirror_deletes, max_workers, auto
                      sync_verified="", sync_verified_msg="")
 
         scan_results = load_scan_results()
+        # B8 fix : signature CIBLE capturee AVANT run_preflight. Le write-test
+        # .zima_write_test bumpe le mtime racine -> faux "Plan perime".
+        _tsig_presync = "%.0f:%d" % _dir_signature(Path(target))
         if not scan_results:
             raise RuntimeError("Aucun résultat de scan disponible — lancez un scan d'abord.")
 
@@ -215,7 +218,7 @@ def _run_sync(source, target, dry_run, verify, mirror_deletes, max_workers, auto
 
         if mirror_deletes:
             _st = get_state()
-            _live_tsig = "%.0f:%d" % _dir_signature(Path(target))
+            _live_tsig = _tsig_presync
             if _st.get("source_changed") or _st.get("target_changed") or (_st.get("target_sig") and _live_tsig != _st["target_sig"]):
                 update_state(app_state=AppState.ERROR, error="Plan perime : source ou cible modifiee depuis le scan. Relancez un scan avant la synchro.")
                 return
