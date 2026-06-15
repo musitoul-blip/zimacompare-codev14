@@ -61,7 +61,7 @@ def _startup():
     ensure_dirs()
     load_persisted_state()
     hash_cache_load()
-    logger.info(f"ZimaCompare v3.8 démarré — cache hash : {hash_cache_stats()['entries']} entrées")
+    logger.info(f"ZimaCompare v{APP_VERSION} démarré — cache hash : {hash_cache_stats()['entries']} entrées")
 
 
 
