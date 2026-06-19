@@ -33,7 +33,8 @@ DANGER_KEYS = {
 }
 # Audits INFORMATIFS (listings/recaps, pas des defauts) : exclus du comptage
 # des problemes, des badges d'onglet et des flags "Par dossier".
-INFO_KEYS = {"cover_size", "quality_analysis", "albumartist_vs_artist", "duplicates_artist_title"}
+INFO_KEYS = {"cover_size", "quality_analysis", "albumartist_vs_artist", "duplicates_artist_title", "bitrate_mixed_album", "id3_version_inconsistency"}
+PARDOSSIER_KEEP = {"bitrate_mixed_album", "id3_version_inconsistency"}  # INFO pour score/badges, mais listes dans la carte + filtre Par dossier
 GROUP_LABELS = {
     "qualite": "Qualite", "integrite": "Integrite", "metadonnees": "Metadonnees",
     "doublons": "Doublons", "casse": "Casse", "images": "Pochettes", "donnees": "Donnees",
@@ -241,7 +242,7 @@ def _dir_aggregate(ar, df, groups):
         if group_name in ("cockpit", "kpi", "donnees"):
             continue
         for sheet_name, data_key in sheets:
-            if data_key in KPI_KEYS or data_key in SKIP_KEYS or data_key in INFO_KEYS:
+            if data_key in KPI_KEYS or data_key in SKIP_KEYS or (data_key in INFO_KEYS and data_key not in PARDOSSIER_KEEP):
                 continue
             data = ar.get(data_key)
             if not isinstance(data, pd.DataFrame) or data.empty:
@@ -415,7 +416,7 @@ def export_to_html():
         if _g in ("cockpit", "kpi", "donnees"):
             continue
         for _sn, _dk in _sheets:
-            if _dk in KPI_KEYS or _dk in SKIP_KEYS or _dk in INFO_KEYS:
+            if _dk in KPI_KEYS or _dk in SKIP_KEYS or (_dk in INFO_KEYS and _dk not in PARDOSSIER_KEEP):
                 continue
             _lab = _clean_label(_sn)
             if _lab and _lab not in _seen:

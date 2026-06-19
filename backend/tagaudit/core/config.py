@@ -73,6 +73,7 @@ class ZimaConfig:
     
     # Seuils d'audit
     MIN_BITRATE_MP3: int = 192
+    BITRATE_MIXED_GAP_KBPS: int = 50  # F17 : saut max entre bitrates consecutifs (kbps), au-dela = mixte
     MIN_COVER_SIZE: int = 300
     MAX_COVER_SIZE: int = 1500
     

@@ -126,6 +126,9 @@ class AuditEngine:
             ('duplicates_md5', self._audit_duplicates_md5),
             ('duplicates_artist_title', self._audit_duplicates_artist_title),
             ('bitrate_anomalies', self._audit_bitrate_anomalies),
+            ('bitrate_mixed_album', self._audit_bitrate_mixed_album),
+            ('mojibake', self._audit_mojibake),
+            ('id3_version_inconsistency', self._audit_id3_version_inconsistency),
             ('missing_metadata', self._audit_missing_metadata),
             ('samplerate_inconsistency', self._audit_samplerate_inconsistency),
             ('albumartist_vs_artist', self._audit_albumartist_vs_artist),
@@ -904,6 +907,88 @@ class AuditEngine:
                 })
         return pd.DataFrame(issues)
     
+    def _audit_bitrate_mixed_album(self) -> pd.DataFrame:
+        """Bitrate mixte intra-album (MP3) : ecart max-min >= seuil (INFO).
+
+        F17 : ne flague que les MP3 d'un meme (parent_folder, album) dont
+        l'etendue de bitrate depasse config.BITRATE_MIXED_RANGE_KBPS. Le
+        melange de formats est couvert par _audit_codec_homogeneity.
+        """
+        if not self._has_cols('album', 'bitrate', 'parent_folder', 'extension'):
+            return pd.DataFrame()
+
+        df = self.df[(self.df['album'] != '') & (self.df['extension'] == 'mp3')].copy()
+        if df.empty:
+            return pd.DataFrame()
+        df['bitrate_num'] = pd.to_numeric(df['bitrate'], errors='coerce')
+
+        seuil = getattr(config, 'BITRATE_MIXED_GAP_KBPS', 50)
+        issues = []
+        for (folder, album), group in df.groupby(['parent_folder', 'album']):
+            br = group['bitrate_num'].dropna()
+            if len(br) < 2:
+                continue
+            vals = sorted({int(v) for v in br})
+            gaps = [b - a for a, b in zip(vals, vals[1:])]
+            saut_max = max(gaps) if gaps else 0
+            if saut_max >= seuil:
+                spread = vals[-1] - vals[0]
+                issues.append({
+                    'Dossier': folder,
+                    'Album': album,
+                    'Bitrates': ', '.join(str(v) for v in vals),
+                    'Saut max': saut_max,
+                    'Écart': spread,
+                    'Fichiers': len(group),
+                })
+        return pd.DataFrame(issues)
+
+    def _audit_mojibake(self) -> pd.DataFrame:
+        """Mojibake (double-encodage UTF-8/Latin-1) dans les champs tag.
+
+        F17 : un caractere A-tilde / A-circonflexe / a-circonflexe suivi d'un
+        autre caractere non-ASCII = signature du double-encodage. Les accents
+        legitimes (ex. 'Ame' = A-circonflexe + lettre ASCII) sont exclus.
+        """
+        cols = [c for c in ('title', 'artist', 'album', 'albumartist', 'composer', 'genre')
+                if c in self.df.columns]
+        if not cols or 'filepath' not in self.df.columns:
+            return pd.DataFrame()
+        rx = '[\u00c2\u00c3][\u0080-\u00bf]|\u00e2\u20ac'
+        rows = []
+        for c in cols:
+            mask = self.df[c].astype(str).str.contains(rx, regex=True, na=False)
+            for _, r in self.df[mask].iterrows():
+                rows.append({
+                    'filepath': r['filepath'],
+                    'Champ': c,
+                    'Valeur': r[c],
+                })
+        return pd.DataFrame(rows)
+
+    def _audit_id3_version_inconsistency(self) -> pd.DataFrame:
+        """Versions ID3 melangees dans un meme album (MP3) (INFO).
+
+        F17 : flague les dossiers dont les MP3 ne sont pas tous sur la meme
+        version ID3 (ex. v2.3 et v2.4 melanges). Tidiness, pas un defaut de
+        lecture. FLAC / M4A ignores (pas d'ID3v2).
+        """
+        if not self._has_cols('album', 'id3_version', 'parent_folder', 'extension'):
+            return pd.DataFrame()
+        df = self.df[self.df['extension'] == 'mp3'].copy()
+        issues = []
+        for folder, group in df.groupby('parent_folder'):
+            vers = [v for v in group['id3_version'].unique() if v]
+            if len(vers) > 1:
+                albums = [a for a in group['album'].unique() if a]
+                issues.append({
+                    'Dossier': folder,
+                    'Album': albums[0] if albums else '',
+                    'Versions': ', '.join(sorted(vers)),
+                    'Fichiers': len(group),
+                })
+        return pd.DataFrame(issues)
+
     def _audit_albumartist_vs_artist(self) -> pd.DataFrame:
         """Album Artist ≠ Artist"""
         # [26] Garde colonnes
