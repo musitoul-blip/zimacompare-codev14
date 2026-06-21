@@ -130,6 +130,7 @@ class AuditEngine:
             ('mojibake', self._audit_mojibake),
             ('id3_version_inconsistency', self._audit_id3_version_inconsistency),
             ('albumartist_typo', self._audit_albumartist_typo),
+            ('folder_artist_mismatch', self._audit_folder_artist_mismatch),
             ('missing_metadata', self._audit_missing_metadata),
             ('samplerate_inconsistency', self._audit_samplerate_inconsistency),
             ('albumartist_vs_artist', self._audit_albumartist_vs_artist),
@@ -1046,6 +1047,53 @@ class AuditEngine:
                 'Suggestion': sugg,
                 'Distance': dist,
                 'Fichiers': len(group),
+            })
+        return pd.DataFrame(issues)
+
+    def _audit_folder_artist_mismatch(self) -> pd.DataFrame:
+        """Nom de dossier <-> albumartist incoherent (INFO).
+
+        F22 : le dossier suit '<artiste> - <album>'. Le segment artiste (avant
+        le 1er ' - ') doit correspondre a l'albumartist des pistes. Test
+        canonique : normalisation NFD strip-accents + minuscules + espaces.
+        Normalises egaux mais bruts differents -> Type 'accent' (accent
+        manquant/different dans le nom de dossier, ex. Mylene vs Mylene
+        accentue). Normalises differents -> Type 'mismatch' (ex. dossier
+        'Various Artists - X' mais tag 'Moby'). Ignore : dossiers sans ' - ',
+        multi-albumartist, ou albumartist multi '/'. INFO, pas un defaut.
+        """
+        if not self._has_cols('albumartist', 'parent_folder'):
+            return pd.DataFrame()
+        import unicodedata
+
+        def _norm(s):
+            s = unicodedata.normalize('NFD', s or '')
+            s = ''.join(c for c in s if unicodedata.category(c) != 'Mn')
+            return ' '.join(s.lower().split())
+
+        work = self.df.copy()
+        work['_aa'] = work['albumartist'].fillna('').map(lambda x: str(x).strip())
+        issues = []
+        for folder, grp in work.groupby('parent_folder'):
+            if ' - ' not in folder:
+                continue
+            aas = sorted(set(a for a in grp['_aa'] if a))
+            if len(aas) != 1 or '/' in aas[0]:
+                continue
+            aa = aas[0]
+            fa = folder.split(' - ', 1)[0].strip()
+            if _norm(fa) == _norm(aa):
+                if fa == aa:
+                    continue
+                typ = 'accent'
+            else:
+                typ = 'mismatch'
+            issues.append({
+                'Dossier': folder,
+                'ArtisteDossier': fa,
+                'AlbumArtist': aa,
+                'Type': typ,
+                'Fichiers': len(grp),
             })
         return pd.DataFrame(issues)
 

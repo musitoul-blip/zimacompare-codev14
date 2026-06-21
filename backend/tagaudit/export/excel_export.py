@@ -128,6 +128,7 @@ class ExcelExporter:
             ('🎭 Incohér. Genre', 'genre_inconsistency'),
             ('👤 Artist ≠ AlbumArtist', 'albumartist_vs_artist'),
             ('✏️ Typo AlbumArtist', 'albumartist_typo'),
+            ('📂 Dossier ≠ AlbumArtist', 'folder_artist_mismatch'),
         ],
         'doublons': [
             ('🔍 Doublons MD5', 'duplicates_md5'),
@@ -168,6 +169,7 @@ class ExcelExporter:
         'samplerate_inconsistency': 1.0,
         'id3_version_inconsistency': 0.0,
         'albumartist_typo': 0.0,
+        'folder_artist_mismatch': 0.0,
         'invalid_year_format': 1.5,
         'year_inconsistency': 1.0,
         'genre_inconsistency': 0.8,

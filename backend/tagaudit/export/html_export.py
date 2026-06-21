@@ -33,8 +33,8 @@ DANGER_KEYS = {
 }
 # Audits INFORMATIFS (listings/recaps, pas des defauts) : exclus du comptage
 # des problemes, des badges d'onglet et des flags "Par dossier".
-INFO_KEYS = {"cover_size", "quality_analysis", "albumartist_vs_artist", "duplicates_artist_title", "bitrate_mixed_album", "id3_version_inconsistency", "albumartist_typo"}
-PARDOSSIER_KEEP = {"bitrate_mixed_album", "id3_version_inconsistency", "albumartist_typo"}  # INFO pour score/badges, mais listes dans la carte + filtre Par dossier
+INFO_KEYS = {"cover_size", "quality_analysis", "albumartist_vs_artist", "duplicates_artist_title", "bitrate_mixed_album", "id3_version_inconsistency", "albumartist_typo", "folder_artist_mismatch"}
+PARDOSSIER_KEEP = {"bitrate_mixed_album", "id3_version_inconsistency", "albumartist_typo", "folder_artist_mismatch"}  # INFO pour score/badges, mais listes dans la carte + filtre Par dossier
 GROUP_LABELS = {
     "qualite": "Qualite", "integrite": "Integrite", "metadonnees": "Metadonnees",
     "doublons": "Doublons", "casse": "Casse", "images": "Pochettes", "donnees": "Donnees",
