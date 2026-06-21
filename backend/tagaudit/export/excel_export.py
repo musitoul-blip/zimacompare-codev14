@@ -127,6 +127,7 @@ class ExcelExporter:
             ('📅 Incohér. Année', 'year_inconsistency'),
             ('🎭 Incohér. Genre', 'genre_inconsistency'),
             ('👤 Artist ≠ AlbumArtist', 'albumartist_vs_artist'),
+            ('✏️ Typo AlbumArtist', 'albumartist_typo'),
         ],
         'doublons': [
             ('🔍 Doublons MD5', 'duplicates_md5'),
@@ -166,6 +167,7 @@ class ExcelExporter:
         'bitrate_mixed_album': 0.0,
         'samplerate_inconsistency': 1.0,
         'id3_version_inconsistency': 0.0,
+        'albumartist_typo': 0.0,
         'invalid_year_format': 1.5,
         'year_inconsistency': 1.0,
         'genre_inconsistency': 0.8,
@@ -306,7 +308,7 @@ class ExcelExporter:
                 self._cockpit_ws = self.workbook.add_worksheet(self.COCKPIT_SHEET)
                 self._cockpit_ws.set_tab_color(self.COLORS['primary'])
             except Exception as e:
-                logger.exception(f"[EXPORT] Erreur création Cockpit: {e}")
+                logger.error(f"[EXPORT] Erreur création Cockpit: {e}")
                 self._cockpit_ws = None
 
             # Feuille cachée _ChartData créée APRÈS le Cockpit (donc en
@@ -320,7 +322,7 @@ class ExcelExporter:
                 try:
                     self._create_cockpit()
                 except Exception as e:
-                    logger.exception(f"[EXPORT] Erreur remplissage Cockpit: {e}")
+                    logger.error(f"[EXPORT] Erreur remplissage Cockpit: {e}")
 
             # Force le Cockpit comme feuille active à l'ouverture
             if self._cockpit_ws is not None:
@@ -335,7 +337,7 @@ class ExcelExporter:
                     try:
                         self._create_data_sheet(sheet_name, data_key, group_name)
                     except Exception as e:
-                        logger.exception(
+                        logger.error(
                             f"[EXPORT] Erreur création feuille '{sheet_name}' "
                             f"(key={data_key}): {e}"
                         )
@@ -348,7 +350,7 @@ class ExcelExporter:
             try:
                 self._generate_mp3tag_companions(output_path)
             except Exception as e:
-                logger.exception(f"[EXPORT] Erreur génération fichiers mp3tag: {e}")
+                logger.error(f"[EXPORT] Erreur génération fichiers mp3tag: {e}")
 
         except Exception as e:
             if tmp_path.exists():

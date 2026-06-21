@@ -129,6 +129,7 @@ class AuditEngine:
             ('bitrate_mixed_album', self._audit_bitrate_mixed_album),
             ('mojibake', self._audit_mojibake),
             ('id3_version_inconsistency', self._audit_id3_version_inconsistency),
+            ('albumartist_typo', self._audit_albumartist_typo),
             ('missing_metadata', self._audit_missing_metadata),
             ('samplerate_inconsistency', self._audit_samplerate_inconsistency),
             ('albumartist_vs_artist', self._audit_albumartist_vs_artist),
@@ -987,6 +988,65 @@ class AuditEngine:
                     'Versions': ', '.join(sorted(vers)),
                     'Fichiers': len(group),
                 })
+        return pd.DataFrame(issues)
+
+    def _audit_albumartist_typo(self) -> pd.DataFrame:
+        """Quasi-doublon / faute de frappe dans albumartist (INFO).
+
+        F21 : une valeur albumartist rare et tres proche (distance d'edition
+        <= 2) d'une valeur >= 10x plus frequente est probablement une typo
+        (ex. 'Various Aritsts' -> 'Various Artists'). Haute precision :
+        len >= 6 + fort ecart de frequence pour eviter les faux positifs
+        (ex. groupes voisins Genesis/Nemesis). INFO, pas un defaut de lecture.
+        """
+        if not self._has_cols('albumartist', 'parent_folder'):
+            return pd.DataFrame()
+        RATIO, MAXDIST, MINLEN = 10, 2, 6
+
+        def _lev(a, b):
+            m, n = len(a), len(b)
+            if m < n:
+                a, b, m, n = b, a, n, m
+            prev = list(range(n + 1))
+            for i in range(1, m + 1):
+                cur = [i] + [0] * n
+                for j in range(1, n + 1):
+                    cur[j] = min(prev[j] + 1, cur[j - 1] + 1,
+                                 prev[j - 1] + (a[i - 1] != b[j - 1]))
+                prev = cur
+            return prev[n]
+
+        s = self.df['albumartist'].fillna('').map(lambda x: str(x).strip())
+        counts = s[s != ''].value_counts()
+        cd = counts.to_dict()
+        vals = list(counts.index)
+        suspects = {}
+        for v in vals:
+            if len(v) < MINLEN:
+                continue
+            cv = cd[v]
+            for w in vals:
+                if w == v or cd[w] < cv * RATIO:
+                    continue
+                d = _lev(v.lower(), w.lower())
+                if 0 < d <= MAXDIST:
+                    suspects[v] = (w, d)
+                    break
+        if not suspects:
+            return pd.DataFrame()
+        work = self.df.copy()
+        work['_aa'] = work['albumartist'].fillna('').map(lambda x: str(x).strip())
+        work = work[work['_aa'].isin(suspects)]
+        issues = []
+        for (folder, aa), group in work.groupby(['parent_folder', '_aa']):
+            sugg, dist = suspects[aa]
+            issues.append({
+                'Dossier': folder,
+                'AlbumArtist': aa,
+                'Suggestion': sugg,
+                'Distance': dist,
+                'Fichiers': len(group),
+            })
         return pd.DataFrame(issues)
 
     def _audit_albumartist_vs_artist(self) -> pd.DataFrame:
