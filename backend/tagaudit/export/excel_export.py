@@ -729,6 +729,24 @@ class ExcelExporter:
             if gen:
                 generated.append(gen)
         
+        # --- Correction 3 : Pochettes corrompues (liste seule, sans action) ---
+        df_invalid = self.audit_results.get('covers_invalid')
+        if isinstance(df_invalid, pd.DataFrame) and not df_invalid.empty:
+            gen = self._write_fix_pair(
+                df=df_invalid,
+                base_path=base,
+                suffix='ListCovers_Invalid',
+                mta_params=None,
+                title='Pochettes corrompues (a inspecter)',
+                description=(
+                    f'{len(df_invalid):,} pochette(s) illisible(s) (Pillow). '
+                    f'Liste seule : ouvre le M3U dans mp3tag et inspecte/repare '
+                    f'chaque fichier manuellement (aucune action automatique).'
+                ),
+            )
+            if gen:
+                generated.append(gen)
+
         # Si rien à faire, on s'arrête là (pas de README inutile)
         if not generated:
             logger.info("[EXPORT] Aucune correction de pochette requise.")
@@ -765,14 +783,18 @@ class ExcelExporter:
         m3u_path = base_path.parent / f"{base_path.name}_{suffix}.m3u"
         
         # --- Fichier .mta (UTF-16 LE + BOM + CRLF) ---
-        mta_lines = ["[#0]", "T=17"]
-        for key in ('1', '2', '3'):  # ordre stable
-            if key in mta_params:
-                mta_lines.append(f"{key}={mta_params[key]}")
-        mta_content = "\r\n".join(mta_lines) + "\r\n"
-        with open(mta_path, 'wb') as f:
-            f.write(b'\xff\xfe')  # BOM UTF-16 LE
-            f.write(mta_content.encode('utf-16-le'))
+        # mta_params falsy (None/{}) = correction "liste seule" : pas d'action mp3tag.
+        if mta_params:
+            mta_lines = ["[#0]", "T=17"]
+            for key in ('1', '2', '3'):  # ordre stable
+                if key in mta_params:
+                    mta_lines.append(f"{key}={mta_params[key]}")
+            mta_content = "\r\n".join(mta_lines) + "\r\n"
+            with open(mta_path, 'wb') as f:
+                f.write(b'\xff\xfe')  # BOM UTF-16 LE
+                f.write(mta_content.encode('utf-16-le'))
+        else:
+            mta_path = None
         
         # --- Fichier .m3u avec traduction Linux → Windows ---
         path_col = 'file_path' if 'file_path' in df.columns \
@@ -790,7 +812,10 @@ class ExcelExporter:
             f.write(f"# Généré par ZimaTAG v{EXPORTER_VERSION} "
                     f"le {datetime.now().strftime('%Y-%m-%d %H:%M')}\n")
             f.write(f"# {title} : {len(df):,} fichier(s)\n")
-            f.write(f"# Action mp3tag associée : {mta_path.name}\n")
+            if mta_path is not None:
+                f.write(f"# Action mp3tag associée : {mta_path.name}\n")
+            else:
+                f.write("# Liste seule : aucune action mp3tag (inspection manuelle).\n")
             f.write("# Les chemins ont été traduits vers Windows pour mp3tag.\n")
             f.write("# Mapping appliqué :\n")
             for linux_prefix, win_prefix in self._get_path_mappings().items():
@@ -813,7 +838,8 @@ class ExcelExporter:
                 n_written += 1
         
         logger.info(
-            f"[EXPORT] {suffix} : {mta_path.name} + {m3u_path.name} "
+            f"[EXPORT] {suffix} : "
+            f"{mta_path.name if mta_path else '(liste seule)'} + {m3u_path.name} "
             f"({n_written} fichiers)"
         )
         return {
@@ -838,22 +864,31 @@ class ExcelExporter:
         corrections_sections = []
         for i, gen in enumerate(generated, start=1):
             params = gen['mta_params']
-            fmt_label = {0: 'Original', 1: 'JPEG', 2: 'PNG'}.get(params.get('1', 0), '?')
-            size = params.get('2', '?')
-            qual = params.get('3', '?')
-            
-            corrections_sections.append(
-                f"  [{i}] {gen['title']}\n"
-                f"      {gen['description']}\n"
-                f"\n"
-                f"      Fichier action   : {gen['mta_path'].name}\n"
-                f"      Playlist         : {gen['m3u_path'].name}\n"
-                f"      Fichiers à traiter : {gen['n_files']:,}\n"
-                f"      Paramètres action :\n"
-                f"        Format de sortie : {fmt_label} (1={params.get('1')})\n"
-                f"        Taille maximum   : {size} px\n"
-                f"        Qualité          : {qual}/100\n"
-            )
+            if params:
+                fmt_label = {0: 'Original', 1: 'JPEG', 2: 'PNG'}.get(params.get('1', 0), '?')
+                size = params.get('2', '?')
+                qual = params.get('3', '?')
+                corrections_sections.append(
+                    f"  [{i}] {gen['title']}\n"
+                    f"      {gen['description']}\n"
+                    f"\n"
+                    f"      Fichier action   : {gen['mta_path'].name}\n"
+                    f"      Playlist         : {gen['m3u_path'].name}\n"
+                    f"      Fichiers à traiter : {gen['n_files']:,}\n"
+                    f"      Paramètres action :\n"
+                    f"        Format de sortie : {fmt_label} (1={params.get('1')})\n"
+                    f"        Taille maximum   : {size} px\n"
+                    f"        Qualité          : {qual}/100\n"
+                )
+            else:
+                corrections_sections.append(
+                    f"  [{i}] {gen['title']}\n"
+                    f"      {gen['description']}\n"
+                    f"\n"
+                    f"      Playlist         : {gen['m3u_path'].name}\n"
+                    f"      Fichiers à traiter : {gen['n_files']:,}\n"
+                    f"      (Liste seule : aucune action mp3tag, inspection manuelle.)\n"
+                )
         corrections_text = "\n".join(corrections_sections)
         
         return f"""================================================================================
