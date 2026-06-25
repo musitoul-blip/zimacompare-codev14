@@ -1,12 +1,12 @@
 #!/bin/sh
 # =====================================================================
 #  bugcheck.sh  -  filet anti-bug ZimaCompare&Tag v10  (v2)
-#  Usage : sudo -v && sudo sh bugcheck.sh   (conteneur zimacompare-v13 en service)
+#  Usage : sudo -v && sudo sh bugcheck.sh   (conteneur zimacompare-v14 en service)
 #  Verdict PASS / A VOIR. Ignore le bruit connu (RUF012/B007/F401/unicode),
 #  ne signale que les VRAIS bugs + erreurs runtime.
 # =====================================================================
-C=zimacompare-v13
-PORT=8514
+C=zimacompare-v14
+PORT=8515
 FAIL=0
 
 echo "===== 1/5  SYNTAXE (compileall) ====="
