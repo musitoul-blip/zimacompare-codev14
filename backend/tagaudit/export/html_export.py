@@ -283,6 +283,10 @@ LINK_DROP = {
     "bitrate_anomalies": set(),
     "albumartist_vs_artist": set(),
     "duplicates_artist_title": {"file_md5"},
+    "cover_size": set(),                 # T10 Lot D (Q5 par fichier)
+    "duration_zero": set(),              # T10 Lot D (Q5, vide sur lib actuelle)
+    "invalid_year_format": set(),        # T10 Lot D (Q5, vide sur lib actuelle)
+    "duplicates_md5": {"file_md5"},      # T10 Lot D (Q5, vide sur lib actuelle)
 }
 
 
