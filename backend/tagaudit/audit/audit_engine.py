@@ -350,15 +350,16 @@ class AuditEngine:
             agg_dict['genre'] = lambda x: x.nunique()
         if 'albumartist' in df.columns:
             agg_dict['albumartist'] = lambda x: x.nunique()
-        if 'bitrate' in df.columns:
-            # [16] Cast safe pour éviter le crash sur cellules vides.
-            agg_dict['bitrate'] = lambda x: pd.to_numeric(x, errors='coerce').std()
+        # T10 Lot B: colonne 'Écart bitrate' retirée (calculée mais hors filtre, trompeuse ;
+        # std redondant avec bitrate_mixed_album). Agrégation bitrate désactivée.
+        # if 'bitrate' in df.columns:
+        #     agg_dict['bitrate'] = lambda x: pd.to_numeric(x, errors='coerce').std()
         
         grouped = df.groupby(['parent_folder', 'album']).agg(agg_dict).reset_index()
         rename_map = {
             'parent_folder': 'Dossier', 'album': 'Album',
             'year': 'Années diff.', 'genre': 'Genres diff.',
-            'albumartist': 'Album Artists diff.', 'bitrate': 'Écart bitrate',
+            'albumartist': 'Album Artists diff.',  # T10 Lot B: 'bitrate':'Écart bitrate' retiré
             'filename': 'Fichiers',
         }
         grouped = grouped.rename(columns=rename_map)
