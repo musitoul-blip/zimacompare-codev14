@@ -311,6 +311,24 @@ def api_ui_pref_set(key: str, body: UiPrefBody):
     _ar.set_ui_pref(key, body.value)
     return {"status": "ok", "key": key}
 
+# T10 Lot I3 : parametres metier d'audits (seuils editables)
+class AuditParamBody(BaseModel):
+    value: float
+
+@app.get("/api/audit-params")
+def api_audit_params():
+    from tagaudit.core import audit_registry as _ar
+    _ar.init_and_seed()
+    return _ar.get_all_audit_params()
+
+@app.post("/api/audit-params/{param_key}")
+def api_audit_param_set(param_key: str, body: AuditParamBody):
+    from tagaudit.core import audit_registry as _ar
+    ok = _ar.set_audit_param(param_key, body.value)
+    if not ok:
+        raise HTTPException(status_code=404, detail="param_key inconnu")
+    return {"status": "ok", "param_key": param_key, "value": body.value}
+
 @app.get("/api/reports")
 def api_reports():
     if not REPORTS_DIR.exists(): return []

@@ -138,11 +138,39 @@ function HeadRow({ widths, onResize }) {
   )
 }
 
+// T10 Lot I4 : edition d'un parametre metier (seuil)
+function ParamRow({ p, onSaved }) {
+  const [val, setVal] = useState(p.value)
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState('')
+  const dirty = Number(val) !== Number(p.value)
+  async function save() {
+    setBusy(true); setMsg('')
+    try { await api.auditParamSet(p.param_key, Number(val)); setMsg('✓'); onSaved(p.param_key, Number(val)) }
+    catch (e) { setMsg('✗ ' + e.message) } finally { setBusy(false) }
+  }
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', flexWrap: 'wrap' }}>
+      <span style={{ minWidth: 230, fontSize: 13 }}>{p.label}
+        <span style={{ color: 'var(--muted)', fontSize: 11 }}> ({p.audit_key})</span>
+      </span>
+      <input type="number" step="1" min="0" value={val}
+             onChange={e => setVal(e.target.value)}
+             style={{ width: 90, fontSize: 13 }} />
+      <span style={{ color: 'var(--muted)', fontSize: 12, minWidth: 30 }}>{p.unit}</span>
+      <button className="btn-primary" disabled={!dirty || busy} onClick={save}
+              style={{ fontSize: 12, padding: '2px 8px' }}>{busy ? '…' : 'Enregistrer'}</button>
+      {msg && <span style={{ fontSize: 12, color: msg[0] === '✓' ? 'var(--success)' : 'var(--danger)' }}>{msg}</span>}
+    </div>
+  )
+}
+
 export default function TabAuditRegistry() {
   const [rows, setRows] = useState(null)
   const [err, setErr] = useState('')
   const [loading, setLoading] = useState(true)
   const [widths, setWidths] = useState(DEFAULT_WIDTHS)
+  const [params, setParams] = useState([])  // T10 Lot I4
   const [savingW, setSavingW] = useState(false)
   const [wMsg, setWMsg] = useState('')
 
@@ -151,6 +179,7 @@ export default function TabAuditRegistry() {
     try {
       const data = await api.auditRegistry()
       setRows(data)
+      try { setParams(await api.auditParams()) } catch (e) { /* params optionnels */ }  // T10 Lot I4
       // largeurs persistees (sinon defauts)
       try {
         const pref = await api.uiPrefGet(PREF_KEY)
@@ -164,6 +193,7 @@ export default function TabAuditRegistry() {
     setRows(rs => rs.map(r => r.audit_key === updated.audit_key ? updated : r))
   }
   function onResize(key, w) { setWidths(prev => ({ ...prev, [key]: w })) }
+  function onParamSaved(k, v) { setParams(ps => ps.map(p => p.param_key === k ? { ...p, value: v } : p)) }  // T10 Lot I4
 
   async function saveWidths() {
     setSavingW(true); setWMsg('')
@@ -205,6 +235,15 @@ export default function TabAuditRegistry() {
         </div>
       </div>
 
+      {params.length > 0 && (
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div style={{ fontWeight: 600, marginBottom: 6 }}>⚙ Paramètres d'audit (seuils)</div>
+          <div style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 8 }}>
+            Modifient le comportement des audits au prochain rapport généré.
+          </div>
+          {params.map(p => <ParamRow key={p.param_key} p={p} onSaved={onParamSaved} />)}
+        </div>
+      )}
       {Object.entries(groups).map(([grp, items]) => (
         <div key={grp} className="card" style={{ marginBottom: 12, padding: 0, overflow: 'hidden' }}>
           <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)',
